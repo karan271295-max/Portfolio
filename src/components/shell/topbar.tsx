@@ -1,11 +1,13 @@
 "use client";
 
-import { Search, Bell, Command } from "lucide-react";
+import { Search, Bell, Command, Cloud, HardDrive } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useCommandPalette } from "./command-palette";
+import { usePortfolio } from "@/lib/store";
 
 export function Topbar() {
   const { open } = useCommandPalette();
+  const { synced } = usePortfolio();
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg)_70%,transparent)] px-4 backdrop-blur-xl md:px-6">
       <button
@@ -20,7 +22,15 @@ export function Topbar() {
       </button>
 
       <div className="ml-auto flex items-center gap-2">
-        <Badge tone="neutral">Local · not synced</Badge>
+        {synced ? (
+          <Badge tone="positive">
+            <Cloud className="h-3 w-3" /> Synced
+          </Badge>
+        ) : (
+          <Badge tone="neutral">
+            <HardDrive className="h-3 w-3" /> Local
+          </Badge>
+        )}
         <button className="grid h-9 w-9 place-items-center rounded-[var(--radius-sm)] text-[var(--fg-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--fg)]">
           <Bell className="h-[18px] w-[18px]" />
         </button>

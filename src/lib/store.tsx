@@ -11,7 +11,8 @@ export interface PortfolioState {
 }
 
 interface Store extends PortfolioState {
-  persisted: boolean; // true in demo mode (localStorage); false when Supabase-backed
+  persisted: boolean; // localStorage cache active
+  synced: boolean; // cross-device sync via /api/portfolio active
   addHolding: (h: Omit<Holding, "id" | "updatedAt">) => void;
   updateHolding: (id: string, patch: Partial<Holding>) => void;
   removeHolding: (id: string) => void;
@@ -41,9 +42,11 @@ export function PortfolioProvider({
   persist: boolean;
   children: React.ReactNode;
 }) {
-  // In demo mode, prefer a saved localStorage copy over the seed.
+  // Prefer a saved localStorage copy over the seed.
   const [state, setState] = useState<PortfolioState>(initial);
+  const [syncOn, setSyncOn] = useState(false);
   const hydrated = useRef(false);
+  const syncReady = useRef(false);
 
   useEffect(() => {
     if (!persist || hydrated.current) return;
@@ -65,10 +68,49 @@ export function PortfolioProvider({
     }
   }, [state, persist]);
 
+  // Pull the server document on mount. If sync is on and the server has data,
+  // it wins (that's how a second device sees your portfolio). Empty server ->
+  // the current state gets pushed up below. Offline / no keys -> local only.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/portfolio");
+        const json = await res.json();
+        if (cancelled) return;
+        if (json.sync) {
+          if (json.data) setState(json.data);
+          setSyncOn(true);
+        }
+      } catch {
+        /* offline — keep local */
+      } finally {
+        syncReady.current = true;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Debounced push of the full document whenever it changes.
+  useEffect(() => {
+    if (!syncOn || !syncReady.current) return;
+    const t = setTimeout(() => {
+      fetch("/api/portfolio", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(state),
+      }).catch(() => {});
+    }, 800);
+    return () => clearTimeout(t);
+  }, [state, syncOn]);
+
   const store = useMemo<Store>(
     () => ({
       ...state,
       persisted: persist,
+      synced: syncOn,
       addHolding: (h) =>
         setState((s) => ({
           ...s,
@@ -93,7 +135,7 @@ export function PortfolioProvider({
       removeLiability: (id) =>
         setState((s) => ({ ...s, liabilities: s.liabilities.filter((l) => l.id !== id) })),
     }),
-    [state, persist],
+    [state, persist, syncOn],
   );
 
   return <PortfolioContext.Provider value={store}>{children}</PortfolioContext.Provider>;
