@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# WealthOS — Net Worth Operating System
 
-## Getting Started
+Every asset, every liability. One beautiful dashboard. One source of truth.
 
-First, run the development server:
+Dark-first, Apple/Linear-grade wealth dashboard. Next.js 16 (App Router) · TypeScript ·
+Tailwind v4 · Framer Motion · Recharts · Supabase (Postgres + RLS).
+
+## Run
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Opens on <http://localhost:3000> → `/dashboard`. With no backend configured it runs in
+**demo mode** on a realistic sample portfolio (badge shown top-right). The finance math
+(net worth, XIRR, CAGR, allocation, health score) is real — only the source rows are seeded.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Wire a real backend
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Create a Supabase project.
+2. Run the migration: `supabase/migrations/0001_init.sql` (SQL editor or `supabase db push`).
+3. Enable auth providers: Email OTP, Google, Apple.
+4. Copy env:
 
-## Learn More
+   ```bash
+   cp .env.local.example .env.local
+   # fill NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+Demo mode switches off automatically once those are set. Middleware then guards every route
+and redirects unauthenticated users to `/login`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## What's built
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Dashboard** — net worth hero + animated count-up, live area chart, KPI grid
+  (invested, current, unrealized gain, XIRR, CAGR, passive income), asset-class allocation
+  donut + bars, portfolio health gauge, emergency-fund + concentration, upcoming maturities/dues,
+  recent activity.
+- **Assets** — sortable holdings table across 27 asset kinds, gain %.
+- **Liabilities** — outstanding, EMI, rate, due dates; net worth auto-computed.
+- **Transactions** — signed ledger feed.
+- **Command palette** (⌘K), sidebar nav, PWA manifest, dark-first design system.
+- **Data layer** — single `loadPortfolio()` reads Supabase when configured, else demo.
+- **Schema** — normalized Postgres, indexes, RLS on every table, audit log, net-worth snapshots.
 
-## Deploy on Vercel
+## Roadmap (next modules)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Stubbed routes (`/analytics`, `/goals`, `/insights`, `/import`, `/settings`) list their planned
+scope in-app. Priority order:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Write path** — add/edit asset & liability forms, optimistic updates, undo.
+2. **Import engine** — CSV/Excel/PDF/CAS parsing, column mapping, dedup, audit.
+3. **Live market data** — price/NAV/forex refresh via Edge Functions + cron.
+4. **Analytics** — sector/country/AMC breakdowns, drawdown, rolling returns, benchmarks.
+5. **Goals** — targets, projections, Monte-Carlo success probability.
+6. **Smart insights + AI copilot** — daily insights, portfolio Q&A (no regulated advice).
+7. **Reports** — PDF exports. **Notifications**. **2FA / biometric**.
+
+## Tests
+
+```bash
+npx tsx src/lib/finance.test.ts   # finance engine self-check
+npm run build                     # typecheck + prod build
+```
