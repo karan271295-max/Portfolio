@@ -4,7 +4,7 @@ import { Search, Bell, Command } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useCommandPalette } from "./command-palette";
 
-export function Topbar({ demo }: { demo: boolean }) {
+export function Topbar() {
   const { open } = useCommandPalette();
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg)_70%,transparent)] px-4 backdrop-blur-xl md:px-6">
@@ -20,7 +20,7 @@ export function Topbar({ demo }: { demo: boolean }) {
       </button>
 
       <div className="ml-auto flex items-center gap-2">
-        {demo && <Badge tone="warning">Demo data</Badge>}
+        <Badge tone="neutral">Local · not synced</Badge>
         <button className="grid h-9 w-9 place-items-center rounded-[var(--radius-sm)] text-[var(--fg-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--fg)]">
           <Bell className="h-[18px] w-[18px]" />
         </button>
