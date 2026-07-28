@@ -1,21 +1,17 @@
-import { demoHoldings, demoHistory, demoLiabilities, demoTransactions } from "./demo-data";
-import type { Holding, Liability, NetWorthPoint, Transaction } from "./types";
+import { demoHistory, demoLiabilities, demoSnapshots } from "./demo-data";
+import type { HistoryPoint, Liability, Snapshot } from "./types";
 
 export interface PortfolioData {
-  holdings: Holding[];
+  snapshots: Snapshot[];
   liabilities: Liability[];
-  transactions: Transaction[];
-  history: NetWorthPoint[];
+  history: HistoryPoint[];
 }
 
-// Local-only personal tool: no auth, no backend. Seeds the client store with the
-// imported portfolio; edits then live in the browser (localStorage). Swap the seed
-// or wire a cloud store here later if cross-device sync is ever needed.
+// Local-first seed for the client store. Sync/localStorage take over on the client.
 export async function loadPortfolio(): Promise<PortfolioData> {
   return {
-    holdings: demoHoldings,
+    snapshots: demoSnapshots,
     liabilities: demoLiabilities,
-    transactions: demoTransactions,
     history: demoHistory,
   };
 }

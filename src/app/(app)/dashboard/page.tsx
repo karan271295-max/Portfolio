@@ -9,62 +9,51 @@ import {
   cagr,
   concentration,
   healthScore,
-  buildNetWorthSeries,
 } from "@/lib/finance";
+import {
+  latestSnapshot,
+  holdingsFromSnapshot,
+  fullHistory,
+  netWorthSeries,
+  investedFlows,
+} from "@/lib/portfolio";
 import { formatMoney, formatPercent, formatDate } from "@/lib/format";
-import type { AssetClass } from "@/lib/types";
 import { Card, CardLabel } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatCard, AnimatedNumber } from "@/components/dashboard/stat-card";
 import { Gauge } from "@/components/dashboard/gauge";
 import { NetWorthChart, AllocationDonut, CHART_COLORS } from "@/components/dashboard/charts";
-import { ArrowUpRight, ArrowDownRight, TrendingUp, CalendarClock } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, TrendingUp } from "lucide-react";
 
 export default function DashboardPage() {
-  const { holdings, liabilities, transactions, history } = usePortfolio();
+  const { snapshots, liabilities, history } = usePortfolio();
+
+  const latest = latestSnapshot(snapshots);
+  const holdings = holdingsFromSnapshot(latest);
   const s = summarize(holdings, liabilities);
+  const byAccount = allocateBy(holdings, (h) => h.name);
   const byClass = allocateBy(holdings, (h) => assetClassLabel[h.assetClass]);
   const top = concentration(holdings);
   const health = healthScore(s, top.pct);
 
-  // Prefer the imported net-worth history; fall back to reconstructing from transactions.
-  const series = history.length ? history : buildNetWorthSeries(s.netWorth, transactions);
-  const startDate = series[0]?.date ?? new Date().toISOString().slice(0, 10);
-  const today = new Date().toISOString().slice(0, 10);
-  const years = Math.max(0.25, (Date.parse(today) - Date.parse(startDate)) / (365 * 864e5));
-
-  // XIRR from signed cashflows: buys are cash out (−), sells/redemptions cash in (+),
-  // current portfolio value is the terminal inflow. Falls back to a single cost-basis
-  // lump when there are no transaction-level flows.
-  const flows = transactions.length
-    ? [
-        ...transactions.map((t) => ({ date: t.date, amount: -t.amount })),
-        { date: today, amount: s.currentValue },
-      ]
-    : [
-        { date: startDate, amount: -s.invested },
-        { date: today, amount: s.currentValue },
-      ];
-  const xirrPct = xirr(flows);
+  const fh = fullHistory(history, snapshots);
+  const series = netWorthSeries(fh);
+  const flows = investedFlows(fh);
+  const xirrPct = flows.length > 1 ? xirr(flows) : 0;
+  const first = fh[0];
+  const last = fh[fh.length - 1];
+  const years = first && last ? Math.max(0.25, (Date.parse(last.date) - Date.parse(first.date)) / (365 * 864e5)) : 1;
   const cagrPct = cagr(s.invested, s.currentValue, years);
-  const gainUp = s.dayChange >= 0;
 
-  const upcoming = [
-    ...holdings
-      .filter((h) => h.maturityDate)
-      .map((h) => ({ label: h.name, date: h.maturityDate!, kind: "Maturity", amount: h.currentValue })),
-    ...liabilities
-      .filter((l) => l.dueDate)
-      .map((l) => ({ label: l.name, date: l.dueDate!, kind: "Due", amount: -(l.emi ?? l.outstanding) })),
-  ]
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(0, 5);
-
-  const recent = [...transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
+  // Period-over-period changes for the activity feed.
+  const activity = fh
+    .map((p, i) => ({ date: p.date, delta: i === 0 ? 0 : p.value - fh[i - 1].value }))
+    .filter((_, i) => i > 0)
+    .reverse()
+    .slice(0, 6);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-sm text-[var(--fg-muted)]">Good to see you, Karan</p>
@@ -80,22 +69,17 @@ export default function DashboardPage() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
           <div className="flex flex-col justify-center gap-3">
             <CardLabel>Total Net Worth</CardLabel>
-            <AnimatedNumber
-              value={s.netWorth}
-              format="money"
-              className="text-4xl font-bold tracking-tight md:text-5xl"
-            />
+            <AnimatedNumber value={s.netWorth} format="money" className="text-4xl font-bold tracking-tight md:text-5xl" />
             <div className="flex flex-wrap items-center gap-2">
-              <Badge tone={gainUp ? "positive" : "negative"}>
-                {gainUp ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                {formatMoney(s.dayChange, "INR", { signed: true })} today
+              <Badge tone={s.unrealizedGain >= 0 ? "positive" : "negative"}>
+                {s.unrealizedGain >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                {formatMoney(s.unrealizedGain, "INR", { compact: true, signed: true })} gain
               </Badge>
-              <Badge tone={gainUp ? "positive" : "negative"}>
-                {formatPercent(s.dayChangePct, { signed: true })}
+              <Badge tone={s.unrealizedGainPct >= 0 ? "positive" : "negative"}>
+                {formatPercent(s.unrealizedGainPct, { signed: true })}
               </Badge>
               <span className="text-xs text-[var(--fg-subtle)]">
-                {formatMoney(s.totalAssets, "INR", { compact: true })} assets ·{" "}
-                {formatMoney(s.totalLiabilities, "INR", { compact: true })} liabilities
+                {latest ? `as of ${formatDate(latest.date)}` : "no entries yet"}
               </span>
             </div>
           </div>
@@ -105,7 +89,7 @@ export default function DashboardPage() {
         </div>
       </Card>
 
-      {/* KPI grid */}
+      {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
         <StatCard label="Invested" value={s.invested} format="moneyCompact" />
         <StatCard label="Current Value" value={s.currentValue} format="moneyCompact" />
@@ -118,21 +102,16 @@ export default function DashboardPage() {
         />
         <StatCard label="XIRR" value={xirrPct} format="percent" tone={xirrPct >= 0 ? "positive" : "negative"} />
         <StatCard label="CAGR" value={cagrPct} format="percent" tone={cagrPct >= 0 ? "positive" : "negative"} />
-        <StatCard
-          label="Passive Income"
-          value={s.passiveIncome}
-          format="moneyCompact"
-          sub="per year"
-        />
+        <StatCard label="Cash" value={s.cash} format="moneyCompact" />
       </div>
 
-      {/* Allocation + health + upcoming */}
+      {/* Allocation + health + accounts */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
-          <CardLabel>Asset Allocation</CardLabel>
-          <AllocationDonut data={byClass} />
+        <Card>
+          <CardLabel>Allocation by Account</CardLabel>
+          <AllocationDonut data={byAccount} />
           <div className="mt-2 space-y-1.5">
-            {byClass.slice(0, 6).map((slice, i) => (
+            {byAccount.map((slice, i) => (
               <div key={slice.key} className="flex items-center gap-2 text-sm">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
                 <span className="text-[var(--fg-muted)]">{slice.key}</span>
@@ -147,41 +126,44 @@ export default function DashboardPage() {
           <Gauge score={health} label="Diversification · Buffer · Leverage" />
           <div className="grid w-full grid-cols-2 gap-2 text-center text-xs">
             <div className="rounded-[var(--radius-sm)] bg-[var(--surface)] p-2">
-              <p className="text-[var(--fg-subtle)]">Emergency Fund</p>
-              <p className="mt-0.5 font-semibold">{s.emergencyMonths.toFixed(1)} mo</p>
+              <p className="text-[var(--fg-subtle)]">Equity split</p>
+              <p className="mt-0.5 font-semibold">
+                {(byClass.find((c) => c.key === "Equity")?.pct ?? 0).toFixed(0)}%
+              </p>
             </div>
             <div className="rounded-[var(--radius-sm)] bg-[var(--surface)] p-2">
-              <p className="text-[var(--fg-subtle)]">Top Holding</p>
+              <p className="text-[var(--fg-subtle)]">Top account</p>
               <p className="mt-0.5 font-semibold">{top.pct.toFixed(0)}%</p>
             </div>
           </div>
         </Card>
 
         <Card>
-          <div className="mb-3 flex items-center gap-2">
-            <CalendarClock className="h-4 w-4 text-[var(--brand-2)]" />
-            <CardLabel className="!mb-0">Upcoming</CardLabel>
-          </div>
-          <div className="space-y-2">
-            {upcoming.map((u, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-[var(--radius-sm)] bg-[var(--surface)] px-3 py-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm">{u.label}</p>
-                  <p className="text-xs text-[var(--fg-subtle)]">{u.kind} · {formatDate(u.date)}</p>
+          <CardLabel>Accounts</CardLabel>
+          <div className="mt-3 space-y-2">
+            {holdings.map((h) => {
+              const g = h.currentValue - h.investedAmount;
+              const gp = h.investedAmount > 0 ? (g / h.investedAmount) * 100 : 0;
+              return (
+                <div key={h.id} className="flex items-center gap-3 rounded-[var(--radius-sm)] bg-[var(--surface)] px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm">{h.name}</p>
+                    <p className="text-xs text-[var(--fg-subtle)]">{formatMoney(h.currentValue, "INR", { compact: true })}</p>
+                  </div>
+                  <Badge className="ml-auto" tone={g >= 0 ? "positive" : "negative"}>
+                    {formatPercent(gp, { signed: true })}
+                  </Badge>
                 </div>
-                <span className={`ml-auto tnum text-sm ${u.amount >= 0 ? "text-[var(--positive)]" : "text-[var(--negative)]"}`}>
-                  {formatMoney(u.amount, "INR", { compact: true, signed: true })}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
       </div>
 
-      {/* Holdings breakdown + recent activity */}
+      {/* Class bars + activity */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardLabel>Holdings by Class</CardLabel>
+          <CardLabel>Allocation by Class</CardLabel>
           <div className="mt-3 space-y-3">
             {byClass.map((slice, i) => (
               <div key={slice.key}>
@@ -192,10 +174,7 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-hover)]">
-                  <div
-                    className="h-full rounded-full"
-                    style={{ width: `${slice.pct}%`, background: CHART_COLORS[i % CHART_COLORS.length] }}
-                  />
+                  <div className="h-full rounded-full" style={{ width: `${slice.pct}%`, background: CHART_COLORS[i % CHART_COLORS.length] }} />
                 </div>
               </div>
             ))}
@@ -203,16 +182,16 @@ export default function DashboardPage() {
         </Card>
 
         <Card>
-          <CardLabel>Recent Activity</CardLabel>
+          <CardLabel>Recent Changes</CardLabel>
           <div className="mt-3 space-y-1">
-            {recent.map((t) => (
-              <div key={t.id} className="flex items-center gap-3 py-1.5">
+            {activity.map((a) => (
+              <div key={a.date} className="flex items-center gap-3 py-1.5">
                 <div className="min-w-0">
-                  <p className="truncate text-sm">{t.label}</p>
-                  <p className="text-xs text-[var(--fg-subtle)]">{formatDate(t.date)}</p>
+                  <p className="truncate text-sm">Portfolio update</p>
+                  <p className="text-xs text-[var(--fg-subtle)]">{formatDate(a.date)}</p>
                 </div>
-                <span className={`ml-auto tnum text-sm ${t.amount >= 0 ? "text-[var(--positive)]" : "text-[var(--negative)]"}`}>
-                  {formatMoney(t.amount, "INR", { compact: true, signed: true })}
+                <span className={`ml-auto tnum text-sm ${a.delta >= 0 ? "text-[var(--positive)]" : "text-[var(--negative)]"}`}>
+                  {formatMoney(a.delta, "INR", { compact: true, signed: true })}
                 </span>
               </div>
             ))}

@@ -1,27 +1,26 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import type { Holding, Liability, NetWorthPoint, Transaction } from "./types";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import type { Liability, HistoryPoint, Snapshot } from "./types";
 
 export interface PortfolioState {
-  holdings: Holding[];
+  snapshots: Snapshot[];
   liabilities: Liability[];
-  transactions: Transaction[];
-  history: NetWorthPoint[];
+  history: HistoryPoint[];
 }
 
 interface Store extends PortfolioState {
-  persisted: boolean; // localStorage cache active
-  synced: boolean; // cross-device sync via /api/portfolio active
-  addHolding: (h: Omit<Holding, "id" | "updatedAt">) => void;
-  updateHolding: (id: string, patch: Partial<Holding>) => void;
-  removeHolding: (id: string) => void;
+  persisted: boolean;
+  synced: boolean;
+  addSnapshot: (date: string, accounts: Snapshot["accounts"]) => void;
+  updateSnapshot: (id: string, date: string, accounts: Snapshot["accounts"]) => void;
+  removeSnapshot: (id: string) => void;
   addLiability: (l: Omit<Liability, "id">) => void;
   updateLiability: (id: string, patch: Partial<Liability>) => void;
   removeLiability: (id: string) => void;
 }
 
-const KEY = "wealthos:portfolio:v1";
+const KEY = "wealthos:portfolio:v2";
 const PortfolioContext = createContext<Store | null>(null);
 
 export function usePortfolio() {
@@ -33,6 +32,10 @@ export function usePortfolio() {
 const uid = () =>
   typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
 
+// Only accept stored/synced data that matches the current shape.
+const valid = (d: unknown): d is PortfolioState =>
+  !!d && typeof d === "object" && Array.isArray((d as PortfolioState).snapshots);
+
 export function PortfolioProvider({
   initial,
   persist,
@@ -42,7 +45,6 @@ export function PortfolioProvider({
   persist: boolean;
   children: React.ReactNode;
 }) {
-  // Prefer a saved localStorage copy over the seed.
   const [state, setState] = useState<PortfolioState>(initial);
   const [syncOn, setSyncOn] = useState(false);
   const hydrated = useRef(false);
@@ -53,7 +55,10 @@ export function PortfolioProvider({
     hydrated.current = true;
     try {
       const raw = localStorage.getItem(KEY);
-      if (raw) setState(JSON.parse(raw));
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (valid(parsed)) setState(parsed);
+      }
     } catch {
       /* corrupt storage — keep seed */
     }
@@ -68,9 +73,7 @@ export function PortfolioProvider({
     }
   }, [state, persist]);
 
-  // Pull the server document on mount. If sync is on and the server has data,
-  // it wins (that's how a second device sees your portfolio). Empty server ->
-  // the current state gets pushed up below. Offline / no keys -> local only.
+  // Pull the server document on mount; it wins for cross-device. Ignore old-shape docs.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -79,7 +82,7 @@ export function PortfolioProvider({
         const json = await res.json();
         if (cancelled) return;
         if (json.sync) {
-          if (json.data) setState(json.data);
+          if (valid(json.data)) setState(json.data);
           setSyncOn(true);
         }
       } catch {
@@ -93,7 +96,6 @@ export function PortfolioProvider({
     };
   }, []);
 
-  // Debounced push of the full document whenever it changes.
   useEffect(() => {
     if (!syncOn || !syncReady.current) return;
     const t = setTimeout(() => {
@@ -111,20 +113,18 @@ export function PortfolioProvider({
       ...state,
       persisted: persist,
       synced: syncOn,
-      addHolding: (h) =>
+      addSnapshot: (date, accounts) =>
         setState((s) => ({
           ...s,
-          holdings: [{ ...h, id: uid(), updatedAt: new Date().toISOString() }, ...s.holdings],
+          snapshots: [...s.snapshots.filter((x) => x.date !== date), { id: uid(), date, accounts }],
         })),
-      updateHolding: (id, patch) =>
+      updateSnapshot: (id, date, accounts) =>
         setState((s) => ({
           ...s,
-          holdings: s.holdings.map((h) =>
-            h.id === id ? { ...h, ...patch, updatedAt: new Date().toISOString() } : h,
-          ),
+          snapshots: s.snapshots.map((x) => (x.id === id ? { ...x, date, accounts } : x)),
         })),
-      removeHolding: (id) =>
-        setState((s) => ({ ...s, holdings: s.holdings.filter((h) => h.id !== id) })),
+      removeSnapshot: (id) =>
+        setState((s) => ({ ...s, snapshots: s.snapshots.filter((x) => x.id !== id) })),
       addLiability: (l) =>
         setState((s) => ({ ...s, liabilities: [{ ...l, id: uid() }, ...s.liabilities] })),
       updateLiability: (id, patch) =>

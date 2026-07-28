@@ -5,11 +5,11 @@ import { PortfolioProvider } from "@/lib/store";
 import { loadPortfolio } from "@/lib/repository";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const { holdings, liabilities, transactions, history } = await loadPortfolio();
+  const { snapshots, liabilities, history } = await loadPortfolio();
 
   return (
     <PortfolioProvider
-      initial={{ holdings, liabilities, transactions, history }}
+      initial={{ snapshots, liabilities, history }}
       persist
     >
       <CommandPaletteProvider>

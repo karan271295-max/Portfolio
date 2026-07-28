@@ -10,20 +10,18 @@ import {
   Target,
   ArrowLeftRight,
   Sparkles,
-  Upload,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/assets", label: "Assets", icon: Wallet },
+  { href: "/entries", label: "Entries", icon: ArrowLeftRight },
+  { href: "/assets", label: "Accounts", icon: Wallet },
   { href: "/analytics", label: "Analytics", icon: TrendingUp },
   { href: "/liabilities", label: "Liabilities", icon: CreditCard },
-  { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
   { href: "/goals", label: "Goals", icon: Target },
   { href: "/insights", label: "Insights", icon: Sparkles },
-  { href: "/import", label: "Import", icon: Upload },
 ];
 
 export function Sidebar() {

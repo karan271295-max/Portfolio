@@ -1,25 +1,22 @@
 "use client";
 
-import { Search, Bell, Command, Cloud, HardDrive } from "lucide-react";
+import { useState } from "react";
+import { Bell, Cloud, HardDrive, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useCommandPalette } from "./command-palette";
+import { Button } from "@/components/ui/button";
+import { Drawer } from "@/components/ui/drawer";
+import { EntryForm } from "@/components/entry/entry-form";
 import { usePortfolio } from "@/lib/store";
 
 export function Topbar() {
-  const { open } = useCommandPalette();
   const { synced } = usePortfolio();
+  const [open, setOpen] = useState(false);
+
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg)_70%,transparent)] px-4 backdrop-blur-xl md:px-6">
-      <button
-        onClick={open}
-        className="group flex h-9 flex-1 items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--fg-subtle)] transition-colors hover:border-[var(--border-strong)] md:max-w-md"
-      >
-        <Search className="h-4 w-4" />
-        <span>Search assets, transactions, goals…</span>
-        <kbd className="ml-auto hidden items-center gap-0.5 rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] text-[var(--fg-subtle)] sm:flex">
-          <Command className="h-3 w-3" />K
-        </kbd>
-      </button>
+      <Button onClick={() => setOpen(true)} size="sm">
+        <Plus className="h-4 w-4" /> New entry
+      </Button>
 
       <div className="ml-auto flex items-center gap-2">
         {synced ? (
@@ -38,6 +35,10 @@ export function Topbar() {
           K
         </div>
       </div>
+
+      <Drawer open={open} onClose={() => setOpen(false)} title="New entry">
+        <EntryForm onDone={() => setOpen(false)} />
+      </Drawer>
     </header>
   );
 }

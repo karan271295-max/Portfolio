@@ -118,3 +118,22 @@ export interface NetWorthPoint {
   date: string; // ISO date
   value: number;
 }
+
+// A dated entry: invested + current value per account. The core record now.
+export interface AccountEntry {
+  invested: number;
+  current: number;
+}
+
+export interface Snapshot {
+  id: string;
+  date: string; // ISO date
+  accounts: Record<string, AccountEntry>; // keyed by Account.id
+}
+
+// Historical totals (portfolio value + cost basis) for the chart and XIRR.
+export interface HistoryPoint {
+  date: string;
+  value: number; // portfolio value
+  invested: number; // cost basis
+}

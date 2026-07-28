@@ -11,13 +11,12 @@ export const useCommandPalette = () => useContext(PaletteContext);
 
 const commands = [
   { label: "Go to Dashboard", href: "/dashboard" },
-  { label: "View Assets", href: "/assets" },
+  { label: "Entries", href: "/entries" },
+  { label: "Accounts", href: "/assets" },
   { label: "Portfolio Analytics", href: "/analytics" },
   { label: "Liabilities", href: "/liabilities" },
-  { label: "Transactions", href: "/transactions" },
   { label: "Goals", href: "/goals" },
   { label: "Smart Insights", href: "/insights" },
-  { label: "Import Center", href: "/import" },
   { label: "Settings", href: "/settings" },
 ];
 
