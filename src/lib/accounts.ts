@@ -15,6 +15,9 @@ export const ACCOUNTS: Account[] = [
   { id: "coin", name: "Coin", label: "Mutual Fund", kind: "mutual_fund", assetClass: "equity" },
   { id: "mfcentral", name: "MF Central", label: "Mutual Fund", kind: "mutual_fund", assetClass: "equity" },
   { id: "indmoney", name: "INDmoney", label: "US Equity", kind: "foreign_investment", assetClass: "equity" },
+  { id: "gold", name: "Gold", label: "Commodity", kind: "gold", assetClass: "commodity" },
+  { id: "pf", name: "PF", label: "Provident Fund", kind: "epf", assetClass: "retirement" },
+  { id: "unlisted", name: "Unlisted Stocks", label: "Private Equity", kind: "private_equity", assetClass: "alternative" },
   { id: "cash", name: "Cash", label: "Cash", kind: "cash", assetClass: "cash", cashLike: true },
 ];
 
