@@ -1,12 +1,13 @@
-import { demoHoldings, demoLiabilities, demoTransactions } from "./demo-data";
+import { demoHoldings, demoHistory, demoLiabilities, demoTransactions } from "./demo-data";
 import { getServerSupabase } from "./supabase/server";
 import { demoMode } from "./supabase/config";
-import type { Holding, Liability, Transaction } from "./types";
+import type { Holding, Liability, NetWorthPoint, Transaction } from "./types";
 
 export interface PortfolioData {
   holdings: Holding[];
   liabilities: Liability[];
   transactions: Transaction[];
+  history: NetWorthPoint[];
   source: "demo" | "supabase";
 }
 
@@ -18,6 +19,7 @@ export async function loadPortfolio(): Promise<PortfolioData> {
       holdings: demoHoldings,
       liabilities: demoLiabilities,
       transactions: demoTransactions,
+      history: demoHistory,
       source: "demo",
     };
   }
@@ -26,7 +28,7 @@ export async function loadPortfolio(): Promise<PortfolioData> {
   const { data: auth } = (await supabase?.auth.getUser()) ?? { data: { user: null } };
   if (!supabase || !auth?.user) {
     // Not signed in — nothing to show. Real app redirects via middleware.
-    return { holdings: [], liabilities: [], transactions: [], source: "supabase" };
+    return { holdings: [], liabilities: [], transactions: [], history: [], source: "supabase" };
   }
 
   const [holdings, liabilities, transactions] = await Promise.all([
@@ -39,6 +41,7 @@ export async function loadPortfolio(): Promise<PortfolioData> {
     holdings: (holdings.data ?? []) as unknown as Holding[],
     liabilities: (liabilities.data ?? []) as unknown as Liability[],
     transactions: (transactions.data ?? []) as unknown as Transaction[],
+    history: [],
     source: "supabase",
   };
 }

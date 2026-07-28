@@ -6,11 +6,11 @@ import { loadPortfolio } from "@/lib/repository";
 import { demoMode } from "@/lib/supabase/config";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const { holdings, liabilities, transactions } = await loadPortfolio();
+  const { holdings, liabilities, transactions, history } = await loadPortfolio();
 
   return (
     <PortfolioProvider
-      initial={{ holdings, liabilities, transactions }}
+      initial={{ holdings, liabilities, transactions, history }}
       persist={demoMode}
     >
       <CommandPaletteProvider>

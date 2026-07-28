@@ -1,12 +1,13 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import type { Holding, Liability, Transaction } from "./types";
+import type { Holding, Liability, NetWorthPoint, Transaction } from "./types";
 
 export interface PortfolioState {
   holdings: Holding[];
   liabilities: Liability[];
   transactions: Transaction[];
+  history: NetWorthPoint[];
 }
 
 interface Store extends PortfolioState {

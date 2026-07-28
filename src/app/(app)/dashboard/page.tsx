@@ -21,26 +21,30 @@ import { NetWorthChart, AllocationDonut, CHART_COLORS } from "@/components/dashb
 import { ArrowUpRight, ArrowDownRight, TrendingUp, CalendarClock } from "lucide-react";
 
 export default function DashboardPage() {
-  const { holdings, liabilities, transactions } = usePortfolio();
+  const { holdings, liabilities, transactions, history } = usePortfolio();
   const s = summarize(holdings, liabilities);
   const byClass = allocateBy(holdings, (h) => assetClassLabel[h.assetClass]);
   const top = concentration(holdings);
   const health = healthScore(s, top.pct);
 
-  const series = buildNetWorthSeries(s.netWorth, transactions);
+  // Prefer the imported net-worth history; fall back to reconstructing from transactions.
+  const series = history.length ? history : buildNetWorthSeries(s.netWorth, transactions);
   const startDate = series[0]?.date ?? new Date().toISOString().slice(0, 10);
   const today = new Date().toISOString().slice(0, 10);
   const years = Math.max(0.25, (Date.parse(today) - Date.parse(startDate)) / (365 * 864e5));
 
-  // XIRR: cost basis out at the start, current value in today. Staggered buys layer
-  // on top so the rate reflects real timing rather than a single lump.
-  const buys = transactions.filter((t) => t.type === "buy");
-  const buysSum = buys.reduce((sum, t) => sum + t.amount, 0);
-  const flows = [
-    { date: startDate, amount: -Math.max(0, s.invested - buysSum) },
-    ...buys.map((t) => ({ date: t.date, amount: -t.amount })),
-    { date: today, amount: s.currentValue },
-  ];
+  // XIRR from signed cashflows: buys are cash out (−), sells/redemptions cash in (+),
+  // current portfolio value is the terminal inflow. Falls back to a single cost-basis
+  // lump when there are no transaction-level flows.
+  const flows = transactions.length
+    ? [
+        ...transactions.map((t) => ({ date: t.date, amount: -t.amount })),
+        { date: today, amount: s.currentValue },
+      ]
+    : [
+        { date: startDate, amount: -s.invested },
+        { date: today, amount: s.currentValue },
+      ];
   const xirrPct = xirr(flows);
   const cagrPct = cagr(s.invested, s.currentValue, years);
   const gainUp = s.dayChange >= 0;
