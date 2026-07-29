@@ -1,4 +1,4 @@
-import { admin } from "@/lib/sync-server";
+import { admin, syncConfigReport } from "@/lib/sync-server";
 
 // GET  -> the stored portfolio document plus the version token to write against
 // PUT  -> { data, baseUpdatedAt } — writes only if the stored version still
@@ -17,7 +17,9 @@ async function current() {
 }
 
 export async function GET() {
-  if (!admin) return Response.json({ data: null, sync: false });
+  // Says which half of the config is missing when sync is off — otherwise a
+  // half-configured deployment is indistinguishable from a deliberate local one.
+  if (!admin) return Response.json({ data: null, sync: false, config: syncConfigReport() });
   const { data, updatedAt, error } = await current();
   // A missing table or a bad key used to look identical to "no data yet", which
   // is how sync stayed broken without anyone noticing.
