@@ -68,6 +68,13 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Privacy mode. formatMoney masks rendered figures, but amounts typed into a
+   form are raw values in the DOM — every number input in this app holds one, so
+   blur them all rather than tagging each field. */
+.privacy-masked input[type="number"] {
+  filter: blur(6px);
+}
+
 /* Glass surface — used sparingly, only where it earns its keep. */
 .glass {
   background: var(--surface);

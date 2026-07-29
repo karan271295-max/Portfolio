@@ -8,6 +8,21 @@ const symbols: Record<Currency, string> = {
   AED: "AED ",
 };
 
+// Privacy mode. Every rupee figure in the app runs through formatMoney — chart
+// axes and tooltips included — so masking here covers the whole UI, including
+// anything added later. Percentages are left alone: they say how the portfolio
+// is doing without saying what it is worth.
+//
+// ponytail: a module-level flag makes formatMoney impure. The alternative is
+// threading a formatter through every call site. PrivacyProvider remounts its
+// subtree on toggle so nothing can render a stale value.
+let masked = false;
+const MASK = "••••••";
+
+export function setMaskAmounts(value: boolean) {
+  masked = value;
+}
+
 // Indian grouping for INR (lakh/crore); western grouping otherwise.
 export function formatMoney(
   value: number,
@@ -17,6 +32,8 @@ export function formatMoney(
   const sign = value < 0 ? "-" : opts.signed ? "+" : "";
   const abs = Math.abs(value);
   const sym = symbols[currency];
+
+  if (masked) return sign + sym + MASK;
 
   if (opts.compact) {
     return sign + sym + compact(abs, currency);
