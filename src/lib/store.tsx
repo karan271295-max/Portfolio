@@ -105,6 +105,8 @@ export function PortfolioProvider({
     if (pushed.current !== null && JSON.stringify(stateRef.current) !== pushed.current) return;
     try {
       const res = await fetch("/api/portfolio", { cache: "no-store" });
+      // Storage misconfigured or unreachable — that is "Offline", not "Local".
+      if (!res.ok) throw new Error(String(res.status));
       const json = await res.json();
       if (!json.sync) return setSync("off");
       adopt(json.data, json.updatedAt ?? null);

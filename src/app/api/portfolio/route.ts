@@ -22,7 +22,11 @@ export async function GET() {
   // A missing table or a bad key used to look identical to "no data yet", which
   // is how sync stayed broken without anyone noticing.
   if (error) {
-    return Response.json({ data: null, sync: false, error: error.message }, { status: 500 });
+    // A misconfigured URL comes back as a whole HTML error page — keep the head.
+    return Response.json(
+      { data: null, sync: false, error: error.message.slice(0, 200) },
+      { status: 500 },
+    );
   }
   return Response.json({ data, updatedAt, sync: true });
 }
