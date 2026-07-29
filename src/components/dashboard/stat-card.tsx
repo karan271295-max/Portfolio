@@ -1,7 +1,7 @@
 "use client";
 
-import { animate, motion, useMotionValue, useTransform } from "framer-motion";
-import { useEffect } from "react";
+import { animate } from "framer-motion";
+import { useEffect, useRef } from "react";
 import { Card, CardLabel } from "@/components/ui/card";
 import { formatMoney, formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,12 @@ const formatters: Record<FormatKind, (n: number) => string> = {
 };
 
 // Animated number that counts up on mount.
+//
+// The text is written straight to the node rather than rendered from a
+// MotionValue child: that pattern silently stops updating under React 19, which
+// left every headline figure frozen at its start value of ₹0. Rendering
+// `fmt(value)` as the child also means the real number is in the server HTML,
+// so the card is correct even if the animation never runs.
 export function AnimatedNumber({
   value,
   format,
@@ -33,13 +39,26 @@ export function AnimatedNumber({
   className?: string;
 }) {
   const fmt = formatters[format];
-  const mv = useMotionValue(0);
-  const text = useTransform(mv, (n) => fmt(n));
+  const ref = useRef<HTMLSpanElement>(null);
+  const from = useRef(0);
+
   useEffect(() => {
-    const controls = animate(mv, value, { duration: 0.9, ease: [0.16, 1, 0.3, 1] });
-    return controls.stop;
-  }, [mv, value]);
-  return <motion.span className={cn("tnum", className)}>{text}</motion.span>;
+    const controls = animate(from.current, value, {
+      duration: 0.9,
+      ease: [0.16, 1, 0.3, 1],
+      onUpdate: (n) => {
+        from.current = n;
+        if (ref.current) ref.current.textContent = fmt(n);
+      },
+    });
+    return () => controls.stop();
+  }, [value, fmt]);
+
+  return (
+    <span ref={ref} className={cn("tnum", className)}>
+      {fmt(value)}
+    </span>
+  );
 }
 
 export function StatCard({
