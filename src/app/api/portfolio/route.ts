@@ -8,17 +8,23 @@ import { admin } from "@/lib/sync-server";
 const DOC_ID = "me";
 
 async function current() {
-  const { data } = await admin!
+  const { data, error } = await admin!
     .from("portfolio_doc")
     .select("data, updated_at")
     .eq("id", DOC_ID)
     .maybeSingle();
-  return { data: data?.data ?? null, updatedAt: data?.updated_at ?? null };
+  return { data: data?.data ?? null, updatedAt: data?.updated_at ?? null, error };
 }
 
 export async function GET() {
   if (!admin) return Response.json({ data: null, sync: false });
-  return Response.json({ ...(await current()), sync: true });
+  const { data, updatedAt, error } = await current();
+  // A missing table or a bad key used to look identical to "no data yet", which
+  // is how sync stayed broken without anyone noticing.
+  if (error) {
+    return Response.json({ data: null, sync: false, error: error.message }, { status: 500 });
+  }
+  return Response.json({ data, updatedAt, sync: true });
 }
 
 export async function PUT(req: Request) {
