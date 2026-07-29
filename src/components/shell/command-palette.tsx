@@ -17,6 +17,7 @@ const commands = [
   { label: "Liabilities", href: "/liabilities" },
   { label: "Goals", href: "/goals" },
   { label: "Smart Insights", href: "/insights" },
+  { label: "Tax Computation", href: "/tax" },
   { label: "Settings", href: "/settings" },
 ];
 

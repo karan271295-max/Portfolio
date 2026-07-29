@@ -10,6 +10,7 @@ import {
   Target,
   ArrowLeftRight,
   Sparkles,
+  Receipt,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ const nav = [
   { href: "/analytics", label: "Analytics", icon: TrendingUp },
   { href: "/liabilities", label: "Liabilities", icon: CreditCard },
   { href: "/goals", label: "Goals", icon: Target },
+  { href: "/tax", label: "Tax", icon: Receipt },
   { href: "/insights", label: "Insights", icon: Sparkles },
 ];
 
